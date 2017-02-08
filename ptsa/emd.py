@@ -14,6 +14,7 @@ Empirical Mode Decomposition
 import numpy as np
 import scipy.interpolate
 import scipy.signal
+import pyunicorn.timeseries.surrogates as ts
 
 def emd(data,max_modes=10):
     """Calculate the Emprical Mode Decomposition of a signal."""
@@ -39,6 +40,49 @@ def emd(data,max_modes=10):
 
     # return an array of modes
     return np.asarray(modes)
+
+
+def emd_IAAFT(data, num_surrogates=10,max_modes=10):
+    """
+    Ensemble Empirical Mode Decomposition (EEMD)
+
+    *** Must still add in post-processing with EMD ***
+    """
+    modes=[]
+
+    # perform sifts until we have all modes
+    residue=data
+    while not _done_sifting(residue):
+        # perform a sift
+        print 'Perform Sift'
+        imf,residue = _do_sift(residue)
+        num_sur = num_surrogates-1
+        res_sur = ts.Surrogates(np.asarray([residue]))
+        res = res_sur.refined_AAFT_surrogates(res_sur.original_data,100,output='both')
+        imfs = [imf]
+
+        while num_sur>0:
+            imf,res = _do_sift(res[0][1])
+            res_sur = ts.Surrogates(np.asarray([res]))
+            res = res_sur.refined_AAFT_surrogates(res_sur.original_data,100,output='both')
+            imfs.append(imf)
+            num_sur-1
+            print imf.shape
+
+        # append the imf
+        modes.append(imfs)
+
+        # see if achieved max
+        if len(modes) == max_modes:
+            # we have all we wanted
+            break
+
+    # append the residue
+    modes.append(residue)
+
+    # return an array of modes
+    return np.asarray(modes)
+
 
 def eemd(data, noise_std=0.2, num_ensembles=100, num_sifts=10):
     """
